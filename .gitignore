@@ -9,7 +9,7 @@ venv/
 ENV/
 .venv
 
-# CSV files (scraped data)
+# CSV files (output from scrape.py)
 *.csv
 
 # IDE
