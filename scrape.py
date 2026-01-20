@@ -13,12 +13,30 @@ def scrape_job_link(job_link):
         soup2 = BeautifulSoup(response_joblink.content, 'html.parser')
         job_desc_element = soup2.find('p', id='job-description')
         if job_desc_element:
-            return job_desc_element.get_text()
-    return 'N/A'
+            job_desc = job_desc_element.get_text()
+            job_desc = job_desc.strip() if job_desc else 'N/A'
 
+        salary_element = soup2.find('h3', string='WAGE / SALARY')
+        if salary_element:
+            salary = salary_element.find_next('p').get_text()
+            salary = salary.strip() if salary else 'N/A'
+
+        hours_perweek_element = soup2.find('h3', string='HOURS PER WEEK')
+        if hours_perweek_element:
+            hours_perweek = hours_perweek_element.find_next('p').get_text()
+            hours_perweek = hours_perweek.strip() if hours_perweek else 'N/A'
+
+    return {
+        'job_desc': job_desc,
+        'salary': salary,
+        'hours_perweek': hours_perweek
+    }
+
+
+keyword = input("Enter the keyword to search for: ")
 # Base URL parameters
 base_params = {
-    'jobkeyword': 'finance',
+    'jobkeyword': keyword,
     'skill_tags': '',
     'partTime': 'on',
     'gig': 'on',
@@ -104,18 +122,20 @@ while page <= 2:
                         job_link = 'https://www.onlinejobs.ph' + job_link
             
             # Get job description from the link
-            job_desc_full = scrape_job_link(job_link)
-            job_desc_full = job_desc_full.strip() if job_desc_full else 'N/A'
+            job_details = scrape_job_link(job_link)
+            
 
             all_data.append({
-                'html_content': str(div),
+                #'html_content': str(div),
                 'job_title': job_title,
                 'job_type': job_type,
                 'job_posted_by': job_posted_by,
                 'job_posted_on': job_posted_on,
                 'job_desc': job_desc,
                 'job_link': job_link,
-                'job_desc_full': job_desc_full
+                'salary': job_details['salary'],
+                'hours_perweek': job_details['hours_perweek'],
+                'job_desc_full': job_details['job_desc'],
             })
         
         # Move to next page
@@ -140,6 +160,6 @@ if all_data:
     # Save to CSV
     filename = f'scraped_content_{base_params["jobkeyword"]}.csv'
     df.to_csv(filename, index=False)
-    print(f"\nData saved to scraped_content.csv")
+    print(f"\nData saved to scraped_content_{base_params["jobkeyword"]}.csv")
 else:
     print("No data was collected.")

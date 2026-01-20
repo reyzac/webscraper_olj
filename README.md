@@ -1,6 +1,6 @@
 # Web Scraper for OnlineJobs.ph
 
-A Python web scraping project that extracts job listings from OnlineJobs.ph and saves them to CSV format. The project includes multiple scraping approaches using `requests` and `BeautifulSoup`, as well as Selenium for JavaScript-heavy pages.
+A Python web scraping project that extracts job listings from OnlineJobs.ph and saves them to CSV format. The project includes multiple scraping approaches using `requests` and `BeautifulSoup`, as well as ~~Selenium for JavaScript-heavy pages~~.
 
 ## Features
 
@@ -9,7 +9,7 @@ A Python web scraping project that extracts job listings from OnlineJobs.ph and 
 - 📊 **CSV Export**: Automatically saves scraped data to CSV files for easy analysis
 - 🔄 **Pagination Support**: Handles multiple pages of job listings automatically
 - ⏱️ **Rate Limiting**: Includes delays between requests to be respectful to servers
-- 🎯 **Multiple Scraping Methods**: Includes both requests-based and Selenium-based scrapers
+- 🎯 **Multiple Scraping Methods**: ~~Includes both requests-based and Selenium-based scrapers~~ (N/A)
 
 ## Project Structure
 
