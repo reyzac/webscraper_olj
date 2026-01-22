@@ -1,33 +1,41 @@
-# Web Scraper for OnlineJobs.ph
+# Web Job Scraper - OnlineJobs.ph
 
-A Python web scraping project that extracts job listings from OnlineJobs.ph and saves them to CSV format. The project includes multiple scraping approaches using `requests` and `BeautifulSoup`, as well as ~~Selenium for JavaScript-heavy pages~~.
+A Flask web application that scrapes job listings from OnlineJobs.ph and allows users to download results as CSV files. Built with Python and deployed on Azure App Service.
 
 ## Features
 
+- 🌐 **Web Interface**: User-friendly Flask web app for searching jobs
 - 🔍 **Job Listing Scraper**: Scrapes job postings from OnlineJobs.ph with customizable search keywords
 - 📄 **Full Job Details**: Extracts job titles, descriptions, posting dates, and full job descriptions
-- 📊 **CSV Export**: Automatically saves scraped data to CSV files for easy analysis
-- 🔄 **Pagination Support**: Handles multiple pages of job listings automatically
+- 📊 **CSV Export**: Download scraped data directly as CSV files
+- 🔄 **Pagination Support**: Automatically handles multiple pages of job listings
 - ⏱️ **Rate Limiting**: Includes delays between requests to be respectful to servers
-- 🎯 **Multiple Scraping Methods**: ~~Includes both requests-based and Selenium-based scrapers~~ (N/A)
+- ☁️ **Cloud Deployed**: Runs on Azure App Service
 
 ## Project Structure
 
 ```
 webscraper_olj/
-├── scrape.py              # Main job scraper for OnlineJobs.ph
-├── claude_scrape.py        # Novel content scraper using requests
-├── selenium_scrape.py      # Novel content scraper using Selenium
-├── .gitignore             # Git ignore file (excludes CSV files)
+├── app.py                 # Flask web application
+├── scrape.py              # Job scraper logic for OnlineJobs.ph
+├── requirements.txt       # Python dependencies
+├── runtime.txt            # Python version specification for Azure
+├── startup.txt            # Startup command for Azure
+├── web.config             # Azure/IIS configuration
+├── .deployment            # Git deployment configuration
+├── .gitignore             # Git ignore file
 └── README.md              # This file
 ```
 
 ## Requirements
 
-- Python 3.7+
+- Python 3.13+
 - See `requirements.txt` for package dependencies
+- Azure subscription (for cloud deployment)
 
-## Installation
+## Installation & Setup
+
+### Local Development
 
 1. Clone this repository:
 ```bash
@@ -35,69 +43,61 @@ git clone https://github.com/reyzac/webscraper_olj.git
 cd webscraper_olj
 ```
 
-2. Install the required packages:
+2. Create a virtual environment (optional but recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. (Optional) For Selenium scraper, ensure you have Chrome browser installed. The `webdriver_manager` package will automatically download the appropriate ChromeDriver.
+4. Run the Flask app locally:
+```bash
+python app.py
+```
+
+The app will be available at `http://localhost:5000`
+
+### Azure Deployment
+
+This app is configured for Azure App Service deployment:
+
+1. **Using VS Code Azure Tools**:
+   - Install the Azure App Service extension
+   - Right-click the project folder in VS Code's Azure sidebar
+   - Select "Deploy to Web App"
+
+2. **Using Azure CLI**:
+```bash
+az webapp up --resource-group <resource-group> --name <app-name> --runtime "PYTHON:3.13"
+```
 
 ## Usage
 
-### Main Job Scraper (`scrape.py`)
+### Web Interface
 
-Scrapes job listings from OnlineJobs.ph based on search keywords.
+1. Navigate to the app URL (locally or on Azure)
+2. Enter a job keyword (e.g., "python", "data analyst", "finance")
+3. Click "Start Scraping"
+4. Download the CSV file with results
 
-```bash
-python scrape.py
-```
-
-**Configuration:**
-- Modify the `base_params` dictionary in `scrape.py` to change search criteria:
-  - `jobkeyword`: Search keyword (default: 'finance')
-  - `partTime`, `gig`, `fullTime`: Job type filters
-- Adjust the `while page <= 2:` condition to scrape more or fewer pages
-
-**Output:**
-- Creates a CSV file named `scraped_content_{keyword}.csv`
-- Contains columns: `html_content`, `job_title`, `job_type`, `job_posted_by`, `job_posted_on`, `job_desc`, `job_link`, `job_desc_full`
-
-### Novel Content Scraper (`claude_scrape.py`)
-
-Scrapes content from novel websites using requests library.
-
-```bash
-python claude_scrape.py
-```
-
-**Configuration:**
-- Modify the `url` variable in the `if __name__ == "__main__"` block
-- Adjust the `delay` parameter to change wait time between requests
-
-### Selenium Scraper (`selenium_scrape.py`)
-
-Scrapes JavaScript-rendered content using Selenium WebDriver.
-
-```bash
-python selenium_scrape.py
-```
-
-**Configuration:**
-- Modify the `url` variable in the `if __name__ == "__main__"` block
-- Runs in headless mode by default (no browser window)
-- Automatically manages ChromeDriver installation
+The app will scrape the first 2 pages of job listings (60 jobs) and provide additional details like salary and hours per week.
 
 ## Data Output
 
-The main scraper (`scrape.py`) generates CSV files with the following columns:
+The scraper generates CSV files with the following columns:
 
-- **html_content**: Raw HTML of the job posting
 - **job_title**: Title of the job position
 - **job_type**: Type of employment (Full-time, Part-time, Gig)
 - **job_posted_by**: Name of the employer/poster
 - **job_posted_on**: Date when the job was posted
 - **job_desc**: Short description from the listing page
 - **job_link**: URL to the full job posting
+- **salary**: Salary/wage information (if available)
+- **hours_perweek**: Expected hours per week (if available)
 - **job_desc_full**: Complete job description from the detail page
 
 ## Important Notes
@@ -115,11 +115,12 @@ The main scraper (`scrape.py`) generates CSV files with the following columns:
 
 ## Dependencies
 
+- `flask`: Web framework
 - `requests`: HTTP library for making web requests
 - `beautifulsoup4`: HTML parsing library
 - `pandas`: Data manipulation and CSV export
-- `selenium`: Browser automation (for `selenium_scrape.py`)
-- `webdriver-manager`: Automatic ChromeDriver management (for `selenium_scrape.py`)
+- `lxml`: XML/HTML parsing library
+- `gunicorn`: Production WSGI server
 
 ## Troubleshooting
 
