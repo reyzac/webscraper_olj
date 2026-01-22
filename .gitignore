@@ -24,3 +24,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Azure configuration (contains infrastructure details)
+.azure/
