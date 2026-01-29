@@ -25,5 +25,12 @@ Thumbs.db
 # Logs
 *.log
 
-# Azure configuration (contains infrastructure details)
-.azure/
+# GCP configuration (contains project/service account details)
+.gcloud/
+*-credentials.json
+service-account*.json
+
+# Environment files
+.env
+.env.local
+.env.production

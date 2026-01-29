@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import time
+from threading import Thread, Lock
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def scrape_job_link(job_link, headers):
     """
@@ -39,14 +41,19 @@ def scrape_job_link(job_link, headers):
         'hours_perweek': hours_perweek
     }
 
-def run_scraper(keyword, progress_callback=None):
+def _scrape_single_keyword(keyword, progress_callback=None, data_lock=None, all_data=None, existing_urls=None):
     """
-    Run the web scraper for the given keyword and save to CSV
-    
+    Scrape jobs for a single keyword (internal function used for parallel scraping)
+
     Args:
         keyword: Job search keyword
         progress_callback: Optional callback function to track progress
+        data_lock: Thread lock for thread-safe data appending
+        all_data: Shared list to append results to
+        existing_urls: Set of URLs that already exist in master CSV (to skip)
     """
+    if existing_urls is None:
+        existing_urls = set()
     base_params = {
         'jobkeyword': keyword,
         'skill_tags': '',
@@ -59,7 +66,7 @@ def run_scraper(keyword, progress_callback=None):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
     }
 
-    all_data = []
+    keyword_data = []
     page = 1
     offset = 0
 
@@ -125,17 +132,24 @@ def run_scraper(keyword, progress_callback=None):
                             if job_link and not job_link.startswith('http'):
                                 job_link = 'https://www.onlinejobs.ph' + job_link
                     
+                    # Check if job_link already exists in master CSV
+                    if job_link in existing_urls:
+                        if progress_callback:
+                            progress_callback(job_title, 'skipped', keyword)
+                        continue
+
                     # Get job description from the link
                     if progress_callback:
-                        progress_callback(job_title, 'fetching')
-                    
-                    job_details = scrape_job_link(job_link, headers)
-                    
-                    if progress_callback:
-                        progress_callback(job_title, 'complete')
-                    
+                        progress_callback(job_title, 'fetching', keyword)
 
-                    all_data.append({
+                    job_details = scrape_job_link(job_link, headers)
+
+                    if progress_callback:
+                        progress_callback(job_title, 'complete', keyword)
+
+
+                    job_entry = {
+                        'search_keyword': keyword,
                         'job_title': job_title,
                         'job_type': job_type,
                         'job_posted_by': job_posted_by,
@@ -145,7 +159,17 @@ def run_scraper(keyword, progress_callback=None):
                         'salary': job_details['salary'],
                         'hours_perweek': job_details['hours_perweek'],
                         'job_desc_full': job_details['job_desc'],
-                    })
+                    }
+
+                    keyword_data.append(job_entry)
+                    
+                    # Thread-safe append to shared list if provided
+                    if all_data is not None:
+                        if data_lock:
+                            with data_lock:
+                                all_data.append(job_entry)
+                        else:
+                            all_data.append(job_entry)
                 
                 # Move to next page
                 page += 1
@@ -158,13 +182,78 @@ def run_scraper(keyword, progress_callback=None):
                 break
         except Exception as e:
             break
+    
+    return keyword_data
+
+def run_scraper(keyword, progress_callback=None, master_df=None):
+    """
+    Run the web scraper for the given keyword(s) and save to CSV
+
+    Args:
+        keyword: Job search keyword(s) - can be a single keyword or comma-separated keywords
+        progress_callback: Optional callback function to track progress (signature: callback(job_title, status, keyword))
+        master_df: Optional pandas DataFrame containing existing master job list (to skip already scraped URLs)
+
+    Returns:
+        Dictionary with success status, jobs_found count, DataFrame, and updated master_df
+    """
+    # Parse keywords - split by comma and strip whitespace
+    keywords = [k.strip() for k in keyword.split(',') if k.strip()]
+
+    if not keywords:
+        return {"success": False, "jobs_found": 0, "df": None, "keywords": [], "master_df": master_df}
+
+    # Extract existing URLs from master_df if provided
+    existing_urls = set()
+    if master_df is not None and 'job_link' in master_df.columns:
+        existing_urls = set(master_df['job_link'].dropna().tolist())
+
+    # If single keyword, use the original sequential approach for backward compatibility
+    if len(keywords) == 1:
+        keyword_data = _scrape_single_keyword(keywords[0], progress_callback, existing_urls=existing_urls)
+        if keyword_data:
+            df = pd.DataFrame(keyword_data)
+            # Combine with master_df if provided
+            if master_df is not None:
+                updated_master_df = pd.concat([master_df, df], ignore_index=True)
+            else:
+                updated_master_df = df.copy()
+            return {"success": True, "jobs_found": len(df), "df": df, "keywords": keywords, "master_df": updated_master_df}
+        else:
+            return {"success": False, "jobs_found": 0, "df": None, "keywords": keywords, "master_df": master_df}
+
+    # Multiple keywords - scrape in parallel
+    all_data = []
+    data_lock = Lock()
+
+    # Use ThreadPoolExecutor for parallel scraping
+    with ThreadPoolExecutor(max_workers=min(len(keywords), 5)) as executor:
+        # Submit all scraping tasks
+        future_to_keyword = {
+            executor.submit(_scrape_single_keyword, kw, progress_callback, data_lock, all_data, existing_urls): kw
+            for kw in keywords
+        }
+
+        # Wait for all tasks to complete
+        for future in as_completed(future_to_keyword):
+            keyword = future_to_keyword[future]
+            try:
+                future.result()  # This will raise any exceptions that occurred
+            except Exception as e:
+                # Log error but continue with other keywords
+                print(f"Error scraping keyword '{keyword}': {e}")
 
     # Create a DataFrame from all collected data
     if all_data:
         df = pd.DataFrame(all_data)
-        return {"success": True, "jobs_found": len(df), "df": df}
+        # Combine with master_df if provided
+        if master_df is not None:
+            updated_master_df = pd.concat([master_df, df], ignore_index=True)
+        else:
+            updated_master_df = df.copy()
+        return {"success": True, "jobs_found": len(df), "df": df, "keywords": keywords, "master_df": updated_master_df}
     else:
-        return {"success": False, "jobs_found": 0, "df": None}
+        return {"success": False, "jobs_found": 0, "df": None, "keywords": keywords, "master_df": master_df}
 
 
 if __name__ == '__main__':

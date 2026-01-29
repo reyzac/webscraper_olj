@@ -1,6 +1,6 @@
 # Web Job Scraper - OnlineJobs.ph
 
-A Flask web application that scrapes job listings from OnlineJobs.ph and allows users to download results as CSV files. Built with Python and deployed on Azure App Service.
+A Flask web application that scrapes job listings from OnlineJobs.ph and allows users to download results as CSV files. Built with Python and deployed on Google Cloud Run.
 
 ## Features
 
@@ -10,7 +10,7 @@ A Flask web application that scrapes job listings from OnlineJobs.ph and allows 
 - 📊 **CSV Export**: Download scraped data directly as CSV files
 - 🔄 **Pagination Support**: Automatically handles multiple pages of job listings
 - ⏱️ **Rate Limiting**: Includes delays between requests to be respectful to servers
-- ☁️ **Cloud Deployed**: Runs on Azure App Service
+- ☁️ **Cloud Deployed**: Runs on Google Cloud Run
 
 ## Project Structure
 
@@ -19,10 +19,10 @@ webscraper_olj/
 ├── app.py                 # Flask web application
 ├── scrape.py              # Job scraper logic for OnlineJobs.ph
 ├── requirements.txt       # Python dependencies
-├── runtime.txt            # Python version specification for Azure
-├── startup.txt            # Startup command for Azure
-├── web.config             # Azure/IIS configuration
-├── .deployment            # Git deployment configuration
+├── Dockerfile             # Container definition for Cloud Run
+├── DOCKER_GUIDE.md        # Beginner's guide to Docker and the Dockerfile
+├── .dockerignore          # Files to exclude from Docker build
+├── .gcloudignore          # Files to exclude from gcloud deployments
 ├── .gitignore             # Git ignore file
 └── README.md              # This file
 ```
@@ -31,7 +31,8 @@ webscraper_olj/
 
 - Python 3.13+
 - See `requirements.txt` for package dependencies
-- Azure subscription (for cloud deployment)
+- Google Cloud Platform account (for cloud deployment)
+- Docker (for local container testing)
 
 ## Installation & Setup
 
@@ -61,25 +62,50 @@ python app.py
 
 The app will be available at `http://localhost:5000`
 
-### Azure Deployment
+### Google Cloud Run Deployment
 
-This app is configured for Azure App Service deployment:
+This app is configured for Google Cloud Run deployment using Docker containers.
 
-1. **Using VS Code Azure Tools**:
-   - Install the Azure App Service extension
-   - Right-click the project folder in VS Code's Azure sidebar
-   - Select "Deploy to Web App"
+> **New to Docker?** See [DOCKER_GUIDE.md](DOCKER_GUIDE.md) for a beginner-friendly explanation of how Docker and the Dockerfile work.
 
-2. **Using Azure CLI**:
+1. **Prerequisites**:
+   - Install [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+   - Authenticate: `gcloud auth login`
+   - Set your project: `gcloud config set project YOUR_PROJECT_ID`
+
+2. **Enable required APIs**:
 ```bash
-az webapp up --resource-group <resource-group> --name <app-name> --runtime "PYTHON:3.13"
+gcloud services enable run.googleapis.com
+gcloud services enable containerregistry.googleapis.com
+```
+
+3. **Build and deploy**:
+```bash
+# Build and push container using Cloud Build
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/webscraper-olj
+
+# Deploy to Cloud Run
+gcloud run deploy webscraper-olj \
+  --image gcr.io/YOUR_PROJECT_ID/webscraper-olj \
+  --platform managed \
+  --region asia-east1 \
+  --allow-unauthenticated \
+  --memory 512Mi \
+  --timeout 300s
+```
+
+4. **Local Docker testing** (optional):
+```bash
+docker build -t webscraper-olj .
+docker run -p 8080:8080 webscraper-olj
+# Visit http://localhost:8080
 ```
 
 ## Usage
 
 ### Web Interface
 
-1. Navigate to the app URL (locally or on Azure)
+1. Navigate to the app URL (locally or on Cloud Run)
 2. Enter a job keyword (e.g., "python", "data analyst", "finance")
 3. Click "Start Scraping"
 4. Download the CSV file with results
